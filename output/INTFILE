@@ -1,0 +1,38 @@
+0x001000  test5     START     0x1000              
+0x100000  first     J         begin               
+0x100300  five      WORD      5                   
+0x100600  xxx       RESW      1                   
+0x100900  begin     LDA       #0                  
+0x100C00            LDX       #0                  
+0x100F00  loop      JSUB      getc                
+0x101200            RMO       A,S                 
+0x101400            SHIFTL    S,4                 
+0x101600            JSUB      getc                
+0x101900            ADDR      S,A                 
+0x101B00            STCH      exaddr,X            
+0x101E00            TIXR      X                   
+0x102000            J         loop                
+0x102300  getc      STX       temp                
+0x102600            LDX       incnt               
+0x102900            LDA       incnt               
+0x102C00            ADD       one                 
+0x102F00            STA       incnt               
+0x103200            LDCH      indev,X             
+0x103500            COMP      eof                 
+0x103800            JEQ       exaddr              
+0x103B00            COMP      48                  
+0x103E00            JLT       getc                
+0x104100            SUB       48                  
+0x104400            COMP      #10                 
+0x104700            JLT       return              
+0x104A00            SUB       #7                  
+0x104D00  return    LDX       temp                
+0x105000            RSUB                          
+0x105300  one       WORD      1                   
+0x105600  eof       WORD      63                  
+0x105900  temp      RESW      1                   
+0x105C00  incnt     WORD      0                   
+0x105F00  indev     BYTE      C'0010030C1006'     
+0x106B00            BYTE      C'000005FFFFFF?'    
+0x107800  exaddr    RESB      12                  
+                    END       first               
