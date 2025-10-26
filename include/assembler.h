@@ -80,7 +80,7 @@ private:
     std::string programName;
     
     int getInstructionLength(const std::string& mnemonic, const std::string& operand);
-    int getDirectiveLength(const std::string& directive, const std::string& operand);
+    int getDirectiveLength(const std::string& directive, const std::string& operand, SYMTAB* symtab);
 
 public:
     Pass1(OPTAB* opt, SYMTAB* sym);

@@ -18,29 +18,49 @@ int Pass1::getInstructionLength(const std::string& mnemonic, const std::string& 
     return format;
 }
 
-int Pass1::getDirectiveLength(const std::string& directive, const std::string& operand) {
+int Pass1::getDirectiveLength(const std::string& directive, const std::string& operand,SYMTAB* symtab) {
+    int value = 0;
+
+    // 피연산자의 값을 확인 (숫자 or 심볼)
+    if (!operand.empty()) {
+        try {
+            // 1. 숫자인지 시도
+            value = std::stoi(operand);
+        } catch (const std::invalid_argument&) {
+            // 2. 숫자가 아니면 SYMTAB에서 심볼 조회
+            value = symtab->lookup(operand);
+            if (value == -1) {
+                // SYMTAB에도 없음 (아직 정의되지 않은 심볼 사용 등)
+                std::cerr << "Error: Undefined symbol '" << operand 
+                          << "' in directive " << directive << std::endl;
+                value = 0; // 오류 시 길이를 0으로 처리
+            }
+        }
+    }
+
+    // 값(value)을 기반으로 길이 계산
     if (directive == "WORD") {
         return 3;
     } else if (directive == "RESW") {
-        return 3 * std::stoi(operand);
+        return 3 * value; // value = 1 (e.g. RESW 1)
     } else if (directive == "BYTE") {
         if (operand.size() >= 3 && operand[0] == 'C' && operand[1] == '\'') {
-            // C'...'
             size_t start = operand.find('\'');
             size_t end = operand.rfind('\'');
             if (start != std::string::npos && end != std::string::npos && end > start) {
                 return end - start - 1;
             }
         } else if (operand.size() >= 3 && operand[0] == 'X' && operand[1] == '\'') {
-            // X'...'
             size_t start = operand.find('\'');
             size_t end = operand.rfind('\'');
             if (start != std::string::npos && end != std::string::npos && end > start) {
-                return (end - start - 1 + 1) / 2; // 홀수 처리
+                return (end - start - 1 + 1) / 2;
             }
         }
     } else if (directive == "RESB") {
-        return std::stoi(operand);
+        return value; // value = 4096 (e.g. RESB BUFSIZE)
+    } else if (directive == "EQU") {
+        return 0; // EQU는 길이 없음
     }
     return 0;
 }
@@ -81,6 +101,46 @@ bool Pass1::execute(const std::string& srcFilename) {
             intFile.push_back(intLine);
             continue;
         }
+        // EQU 기계 독립적 기능 1
+        if (parsed.opcode == "EQU") {
+            if (parsed.label.empty()) {
+                std::cerr << "Error at line " << lineNum << ": EQU must have a label" << std::endl;
+                continue; // 이 라인 무시
+            }
+            
+            // (간단한 구현) 피연산자가 숫자라고 가정
+            // TODO: 나중에 'Expressions' 기능을 구현할 때 여기를 수정해야 함
+            int value = 0;
+            try {
+                // 16진수(0x) 또는 10진수 모두 처리
+                if (parsed.operand.size() > 2 && parsed.operand.substr(0, 2) == "0x") {
+                    value = std::stoi(parsed.operand.substr(2), nullptr, 16);
+                } else {
+                    value = std::stoi(parsed.operand);
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "Error at line " << lineNum << ": Invalid operand for EQU " << parsed.operand << std::endl;
+                continue;
+            }
+
+            // SYMTAB에 (레이블, 값) 삽입
+            if (!symtab->insert(parsed.label, value)) {
+                 std::cerr << "Warning at line " << lineNum 
+                           << ": Duplicate symbol " << parsed.label << std::endl;
+            }
+            
+            // INTFILE에 기록 (LOCCTR는 증가하지 않음)
+            IntermediateLine intLine;
+            intLine.location = 0; // EQU는 특정 주소가 없음 (혹은 현재 LOCCTR)
+            intLine.label = parsed.label;
+            intLine.opcode = parsed.opcode;
+            intLine.operand = parsed.operand;
+            intLine.objcode = "";
+            intLine.hasLocation = false; // 주소 미출력
+            intFile.push_back(intLine);
+
+            continue; // LOCCTR 증가 로직을 건너뜀
+        }
         
         // END 처리
         if (parsed.opcode == "END") {
@@ -111,7 +171,7 @@ bool Pass1::execute(const std::string& srcFilename) {
         if (optab->isInstruction(parsed.opcode)) {
             length = getInstructionLength(parsed.opcode, parsed.operand);
         } else {
-            length = getDirectiveLength(parsed.opcode, parsed.operand);
+            length = getDirectiveLength(parsed.opcode, parsed.operand, symtab);
         }
         
         // 중간파일에 추가
