@@ -1,12 +1,14 @@
-// ========== src/main.cpp ==========
+// ========== src/main.cpp (수정) ==========
 #include "../include/assembler.h"
 
 int main() {
     std::cout << "\n" << std::string(70, '=') << std::endl;
-    std::cout << "       SIC/XE ASSEMBLER - PASS 1" << std::endl;
+    std::cout << "           SIC/XE ASSEMBLER" << std::endl;
     std::cout << std::string(70, '=') << std::endl;
     
-    // OPTAB 로드
+    // ==================================================
+    // 1. OPTAB 로드
+    // ==================================================
     std::cout << "\n[Step 1] Loading OPTAB..." << std::endl;
     OPTAB optab;
     if (!optab.load("input/optab.txt")) {
@@ -14,12 +16,16 @@ int main() {
         return 1;
     }
     
-    // SYMTAB 생성
+    // ==================================================
+    // 2. SYMTAB 생성
+    // ==================================================
     std::cout << "\n[Step 2] Initializing SYMTAB..." << std::endl;
     SYMTAB symtab;
     std::cout << "SYMTAB initialized successfully" << std::endl;
     
-    // Pass 1 실행
+    // ==================================================
+    // 3. Pass 1 실행
+    // ==================================================
     std::cout << "\n[Step 3] Running Pass 1..." << std::endl;
     Pass1 pass1(&optab, &symtab);
     
@@ -28,43 +34,48 @@ int main() {
         return 1;
     }
     
-    // 결과 출력
-    std::cout << "\n" << std::string(70, '=') << std::endl;
-    std::cout << "       PASS 1 COMPLETED SUCCESSFULLY" << std::endl;
-    std::cout << std::string(70, '=') << std::endl;
-    
-    // SYMTAB 출력 (메모리 상에 존재)
-    symtab.print();
-    
-    // SYMTAB 파일 저장 (선택사항 - 보고서용)
-    symtab.writeToFile("output/SYMTAB.txt");
-    std::cout << "\nSYMTAB written to: output/SYMTAB.txt (for report)" << std::endl;
-    
-    // 중간파일 출력
-    pass1.printIntFile();
-    
-    // 중간파일 저장
+    // Pass 1 결과 (중간파일) 저장
     pass1.writeIntFile("output/INTFILE");
-    
+    // SYMTAB 파일 저장
+    symtab.writeToFile("output/SYMTAB.txt");
+    std::cout << "Pass 1 output (INTFILE, SYMTAB.txt) saved." << std::endl;
+
     // 프로그램 정보
+    int startAddress = pass1.getStartAddress();
+    int programLength = pass1.getProgramLength();
+    std::string programName = pass1.getProgramName();
+    
+    // ==================================================
+    // 4. [신규] Pass 2 실행
+    // ==================================================
+    Pass2 pass2(&optab, &symtab, pass1.getIntFile(), 
+                startAddress, programLength, programName);
+
+    if (!pass2.execute()) {
+        std::cerr << "Pass 2 failed. Exiting..." << std::endl;
+        return 1;
+    }
+
+    // Pass 2 결과 (오브젝트 파일) 저장
+    pass2.writeObjFile("output/OBJFILE");
+    
+    // ==================================================
+    // 5. [신규] 최종 결과 출력
+    // ==================================================
     std::cout << "\n" << std::string(70, '=') << std::endl;
-    std::cout << "       PROGRAM INFORMATION" << std::endl;
-    std::cout << std::string(70, '=') << std::endl;
-    std::cout << "Start Address:  0x" << std::hex << std::uppercase 
-              << std::setw(6) << std::setfill('0') 
-              << pass1.getStartAddress() << std::endl;
-    std::cout << "Final LOCCTR:   0x" << std::hex << std::uppercase 
-              << std::setw(6) << std::setfill('0') 
-              << pass1.getFinalLocctr() << std::endl;
-    std::cout << "Program Length: 0x" << std::hex << std::uppercase 
-              << std::setw(4) << std::setfill('0') 
-              << pass1.getProgramLength() << " (" 
-              << std::dec << pass1.getProgramLength() << " bytes)" << std::endl;
+    std::cout << "     ASSEMBLY COMPLETED SUCCESSFULLY" << std::endl;
     std::cout << std::string(70, '=') << std::endl;
     
+    // 최종 리스팅 파일 (objcode 포함)
+    pass2.printListingFile();
+
+    // 최종 오브젝트 파일
+    pass2.printObjFile();
+
     std::cout << "\n✓ All output files generated successfully!" << std::endl;
     std::cout << "  - output/INTFILE (Pass 1 output)" << std::endl;
     std::cout << "  - output/SYMTAB.txt (Symbol table)" << std::endl;
+    std::cout << "  - output/OBJFILE (Pass 2 output)" << std::endl;
     
     return 0;
 }

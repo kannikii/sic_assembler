@@ -201,3 +201,11 @@ int Pass1::getFinalLocctr() const {
 }
 
 
+// ======== [추가] ========
+const std::vector<IntermediateLine>& Pass1::getIntFile() const {
+    return intFile;
+}
+
+std::string Pass1::getProgramName() const {
+    return programName;
+}

@@ -90,6 +90,60 @@ public:
     int getProgramLength() const;
     int getStartAddress() const;
     int getFinalLocctr() const;
+    // ======== [추가] Pass 2에 데이터를 전달하기 위한 함수 ========
+    const std::vector<IntermediateLine>& getIntFile() const;
+    std::string getProgramName() const;
+    // =======================================================
+};
+
+// ==================== [신규] Pass2 ====================
+class Pass2 {
+private:
+    OPTAB* optab;
+    SYMTAB* symtab;
+    std::vector<IntermediateLine> intFile; // Pass1로부터 복사본
+    int startAddr;
+    int programLength;
+    std::string programName;
+    int firstExecAddr; // E 레코드용
+
+    // H, T, E 레코드
+    std::string headerRecord;
+    std::vector<std::string> textRecords;
+    std::string endRecord;
+
+    // T 레코드 생성을 위한 버퍼
+    std::string currentTextRecord;
+    int currentTextRecordStartAddr;
+    int currentTextRecordLength; // 바이트 단위
+    
+    // 레지스터 번호
+    std::map<std::string, int> registers;
+
+    // 목적 코드 생성
+    std::string generateObjectCode(IntermediateLine& line, int nextLoc);
+    std::string handleFormat1(const IntermediateLine& line);
+    std::string handleFormat2(const IntermediateLine& line);
+    std::string handleFormat3(const IntermediateLine& line, int nextLoc);
+    std::string handleDirective(const IntermediateLine& line);
+
+    // T 레코드 관리
+    void startNewTextRecord(int loc);
+    void appendToTextRecord(const std::string& objCode, int loc);
+    void flushTextRecord();
+
+    // 유틸리티
+    std::string intToHex(int val, int width) const;
+    int hexStringToInt(const std::string& hexStr) const;
+    int getRegisterNum(const std::string& reg) const;
+
+public:
+    Pass2(OPTAB* opt, SYMTAB* sym, const std::vector<IntermediateLine>& intF, 
+          int start, int length, const std::string& progName);
+    bool execute();
+    void writeObjFile(const std::string& objFilename) const;
+    void printObjFile() const;
+    void printListingFile() const; // INTFILE에 objcode가 채워진 것을 출력
 };
 
 #endif
